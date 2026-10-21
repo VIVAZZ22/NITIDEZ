@@ -1,0 +1,37 @@
+name: Build Nitidez
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar (baixa o JUCE)
+        run: cmake -B build -A x64 -DNITIDEZ_BUILD_TESTS=ON
+
+      - name: Compilar o plugin VST3
+        run: cmake --build build --config Release --target Nitidez_VST3 --parallel
+
+      - name: Mostrar o que foi gerado
+        shell: pwsh
+        run: Get-ChildItem -Recurse build/Nitidez_artefacts/Release/VST3 | Select-Object FullName, Length
+
+      - name: Enviar o plugin para download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nitidez-VST3-Windows
+          path: build/Nitidez_artefacts/Release/VST3/Nitidez.vst3
+          if-no-files-found: error
+
+      # Teste do motor de audio (nao impede o download do plugin se falhar)
+      - name: Compilar e rodar o teste do motor
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --target nitidez_engine_test
+          ./build/Release/nitidez_engine_test.exe
